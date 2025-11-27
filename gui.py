@@ -67,25 +67,25 @@ class App(tk.Tk):
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # --- SEKCJA 1: PARAMETRY WEJŚCIOWE ---
-        param_frame = ttk.LabelFrame(main_frame, text="Parametry Wejściowe", padding="10")
+        param_frame = ttk.LabelFrame(main_frame, text="Parametry wejściowe", padding="10")
         param_frame.pack(fill=tk.X, pady=10)
         
         param_frame.columnconfigure(1, weight=0)
         param_frame.columnconfigure(4, weight=1) 
         
         # 1. Charakter Meldunku
-        ttk.Label(param_frame, text="Charakter Meldunku:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(param_frame, text="Charakter meldunku:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.charakter_var = tk.StringVar(value="EXER")
         charakter_options = ["OPER", "EXER"]
         ttk.Combobox(param_frame, textvariable=self.charakter_var, values=charakter_options, state="readonly").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         # 2. Nazwa Komunikatu
-        ttk.Label(param_frame, text="Nazwa Komunikatu:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(param_frame, text="Nazwa komunikatu:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
         self.nazwa_komunikatu_var = tk.StringVar(value="TESTCOAS")
         ttk.Entry(param_frame, textvariable=self.nazwa_komunikatu_var).grid(row=1, column=1, padx=5, pady=5, sticky="ew")
 
         # 3. Czas Startu Modelu (Data + Godzina)
-        ttk.Label(param_frame, text="Start Modelu (UTC):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(param_frame, text="Start modelu (UTC):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         self.model_data_var = tk.StringVar(value=self.start_modelu_dt.strftime("%Y-%m-%d"))
         self.model_hh_var = tk.StringVar(value=self.start_modelu_dt.strftime("%H"))
         ttk.Entry(param_frame, textvariable=self.model_data_var).grid(row=2, column=1, padx=5, pady=5, sticky="w")
@@ -93,7 +93,7 @@ class App(tk.Tk):
         ttk.Label(param_frame, text="HH").grid(row=2, column=3, sticky="w")
 
         # 4. Czas Startu Prognozy (Data + Godzina)
-        ttk.Label(param_frame, text="Start Prognozy (UTC):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(param_frame, text="Start prognozy (UTC):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
         self.prognoza_data_var = tk.StringVar(value=self.start_prognozy_dt.strftime("%Y-%m-%d"))
         self.prognoza_hh_var = tk.StringVar(value=self.start_prognozy_dt.strftime("%H"))
         ttk.Entry(param_frame, textvariable=self.prognoza_data_var).grid(row=3, column=1, padx=5, pady=5, sticky="w")
@@ -101,7 +101,7 @@ class App(tk.Tk):
         ttk.Label(param_frame, text="HH").grid(row=3, column=3, sticky="w")
         
         # 5. Pola Meldunku
-        ttk.Label(param_frame, text="Pola do wyboru:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(param_frame, text="").grid(row=4, column=0, padx=5, pady=5, sticky="w")
         self.cdr_var = tk.BooleanVar(value=True)
         self.bwr_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(param_frame, text="CDR", variable=self.cdr_var).grid(row=4, column=1, padx=5, pady=5, sticky="w")
@@ -135,7 +135,7 @@ class App(tk.Tk):
 
 
         # --- SEKCJA 3: PODGLĄD NAGŁÓWKA ---
-        header_frame = ttk.LabelFrame(main_frame, text="Wspólna, Edytowalna Część Nagłówkowa", padding="10")
+        header_frame = ttk.LabelFrame(main_frame, text="Wspólna część nagłówkowa", padding="10")
         header_frame.pack(fill=tk.X, pady=10)
         self.header_text = tk.Text(header_frame, height=7, font=MONOSPACE_FONT, relief=tk.RIDGE)
         self.header_text.pack(fill=tk.X)
@@ -144,7 +144,7 @@ class App(tk.Tk):
         
 
         # --- SEKCJA 4: LOGI I KOMUNIKATY ---
-        log_frame = ttk.LabelFrame(main_frame, text="Komunikaty i logi", padding="10")
+        log_frame = ttk.LabelFrame(main_frame, text="Komunikaty & logi", padding="10")
         log_frame.pack(fill=tk.BOTH, expand=True)
         
         self.log_text = tk.Text(log_frame, height=10, font=MONOSPACE_FONT, state=tk.DISABLED, relief=tk.SUNKEN)
@@ -157,8 +157,14 @@ class App(tk.Tk):
         self.log_text.insert(tk.END, f"{current_time} {message}\n")
         
         # Ograniczenie liczby linii logów do 20, aby nie przeładować pamięci
-        if int(self.log_text.index('end-1c').split('.')[0]) > 20:
-            self.log_text.delete("1.0", "2.0") 
+        #if int(self.log_text.index('end-1c').split('.')[0]) > 20:
+        #    self.log_text.delete("1.0", "2.0")
+            
+         # Ograniczenie liczby linii logów; 0 w config.LOG_MAX_LINES oznacza brak limitu
+        max_lines = getattr(config, "LOG_MAX_LINES", 0)
+        if max_lines > 0:
+            while int(self.log_text.index('end-1c').split('.')[0]) > max_lines:
+                self.log_text.delete("1.0", "2.0")
 
         self.log_text.see(tk.END)
         

@@ -7,7 +7,7 @@ BASE_URL = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl"
 DOWNLOAD_TIMEOUT = 60 # Sekundy na timeout zapytania HTTP
 MODEL_NAME = "GFS_0p25_1hr"
 DOWNLOAD_DIR = "grib_data" # Katalog, do którego będą pobierane pliki GRIB
-
+LOG_MAX_LINES = 200
 
 # =======================
 # 2. CYKL MODELU I HORYZONTY CZASOWE
@@ -32,14 +32,14 @@ HORIZON_HR_BWR = 12      # Czas trwania meldunku po starcie prognozy (48h)
 
 # CDR: F006, F008, ..., F030. (Start od godziny PRODUCT_START_HOUR, co 2h)
 FCT_HOURS_CDR = list(range(
-    PRODUCT_START_HOUR, 
-    PRODUCT_START_HOUR + HORIZON_HR_CDR + CADENCE_HR_CDR, 
+    PRODUCT_START_HOUR,
+    PRODUCT_START_HOUR + HORIZON_HR_CDR + CADENCE_HR_CDR,
     CADENCE_HR_CDR
-)) 
+))
 # BWR: F012, F018, ..., F054. (Start od PRODUCT_START_HOUR + 6h, co 6h)
 FCT_HOURS_BWR = list(range(
-    PRODUCT_START_HOUR + CADENCE_HR_BWR, 
-    PRODUCT_START_HOUR + HORIZON_HR_BWR + CADENCE_HR_BWR, 
+    PRODUCT_START_HOUR + CADENCE_HR_BWR,
+    PRODUCT_START_HOUR + HORIZON_HR_BWR + CADENCE_HR_BWR,
     CADENCE_HR_BWR
 ))
 
@@ -76,14 +76,16 @@ FIELDS_CDR = [
     ("VIS", "lev_surface", "vis"),
     ("TCDC", "lev_entire_atmosphere", "tcc"),
     ("APCP", "lev_surface", "apcp"),
-    ("ACPEP", "lev_surface", "acpcp"), 
+    ("ACPCP", "lev_surface", "acpcp"),
     ("CAPE", "lev_surface", "cape"),
     ("CIN", "lev_surface", "cin"),
     ("4LFTX", "lev_surface", "lftx"),
 ]
 
 # --- BWR: Pola na poziomach barycznych ---
-BWR_VARS = ("UGRD", "VGRD", "TMP", "RH", "HGT") 
+# Uwaga: BWR pobiera wszystkie poziomy w jednym żądaniu na godzinę prognozy
+# (patrz data_downloader.generate_gfs_urls), co upraszcza dalsze parsowanie.
+BWR_VARS = ("UGRD", "VGRD", "TMP", "RH", "HGT")
 BWR_LEVELS_MB = [900, 700, 500, 400, 300, 250, 150, 100, 70, 50, 30, 20, 10]
 
 # Pełne nazwy poziomów dla URL
@@ -115,7 +117,7 @@ for var, lev, name in FIELDS_CDR:
 # =======================
 # 7. NAGŁÓWKI MELDUNKÓW (Statyczne linie)
 # =======================
-ATP_FIRST_LINE = "EXER/TESTCOAS/-//" 
+ATP_FIRST_LINE = "EXER/TESTCOAS/-//"
 ATP_MSGID_LINE = "MSGID/CBRN CDR/IMGW-PIB/-/-/-/-/-/-/-/-//"
 ATP_GEODATUM_LINE = "GEODATUM/WGE//"
 ATP_AREAM_LINE = "AREAM/NEEB111//"
