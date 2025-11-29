@@ -1,4 +1,5 @@
 import datetime
+import os
 
 # =======================
 # 1. NOMADS i Ustawienia Ogólne
@@ -7,6 +8,9 @@ BASE_URL = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25_1hr.pl"
 DOWNLOAD_TIMEOUT = 60 # Sekundy na timeout zapytania HTTP
 MODEL_NAME = "GFS_0p25_1hr"
 DOWNLOAD_DIR = "grib_data" # Katalog, do którego będą pobierane pliki GRIB
+RAW_DATA_DIR = "raw_data"
+BWR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR, "bwr_output")
+CDR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR, "cdr_output")
 LOG_MAX_LINES = 200
 
 # =======================

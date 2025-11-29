@@ -13,6 +13,7 @@ DOWNLOAD_DIR = config.DOWNLOAD_DIR
 MODEL_NAME = config.MODEL_NAME
 BWR_AREAS = config.BWR_AREAS
 BWR_LEVELS_MB = config.BWR_LEVELS_MB
+BWR_OUTPUT_DIR = config.BWR_OUTPUT_DIR
 
 
 FILENAME_PATTERN = re.compile(r"BWR_all_f(?P<hour>\d{3})\.grib$")
@@ -81,9 +82,9 @@ def _extract_point_wind(ds: xr.Dataset, lat: float, lon: float, level: int) -> T
 
 
 def parse_bwr_to_csv(
-    grib_directory: str = DOWNLOAD_DIR,
-    output_csv: str = "bwr_output.csv",
-    areas: Iterable[Tuple[str, float, float, float, float, float, float]] = BWR_AREAS,
+    grib_directory: str = DOWNLOAD_DIR,␊
+    output_csv: str = os.path.join(BWR_OUTPUT_DIR, "bwr_output.csv"),
+    areas: Iterable[Tuple[str, float, float, float, float, float, float]] = BWR_AREAS,␊
 ) -> str:
     """
     Parsuje pliki GRIB BWR i zapisuje wiatry dla punktów środkowych obszarów do pliku CSV.
