@@ -5,6 +5,8 @@ from urllib.parse import urlencode
 import requests
 import config
 
+import glob
+
 # Wczytanie stałych z modułu config
 BASE_URL = config.BASE_URL
 DOWNLOAD_TIMEOUT = config.DOWNLOAD_TIMEOUT
@@ -96,6 +98,12 @@ def download_grib_files(grouped_urls: dict, log_callback, download_dir=DOWNLOAD_
     if not grouped_urls:
         log_callback("[WARN] Brak URL-i do pobrania.")
         return False
+    
+    for f in glob.glob(os.path.join(download_dir, "*")):
+        try:
+            os.remove(f)
+        except Exception:
+            pass
 
     os.makedirs(download_dir, exist_ok=True)
     total_files = sum(len(urls) for urls in grouped_urls.values())
