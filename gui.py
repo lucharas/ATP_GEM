@@ -183,7 +183,8 @@ class App(tk.Tk):
             self.start_modelu_dt = datetime.datetime.combine(model_date, datetime.time(int(self.model_hh_var.get()), 0))
             self.start_prognozy_dt = datetime.datetime.combine(prognoza_date, datetime.time(int(self.prognoza_hh_var.get()), 0))
             
-            self.log_message(f"[INFO] Czas Modelu: {self.start_modelu_dt.strftime('%Y-%m-%d %H:%M')}Z.")
+            self.log_message(f"[INFO] Czas startu modelu: {self.start_modelu_dt.strftime('%Y-%m-%d %H:%M')}Z.")
+            self.log_message(f"[INFO] Czas startu prognozy: {self.start_prognozy_dt.strftime('%Y-%m-%d %H:%M')}Z.")
 
         except ValueError:
             self.log_message("[ERROR] Nieprawidłowy format daty/godziny! Użyj RRRR-MM-DD i HH.")
@@ -221,8 +222,9 @@ class App(tk.Tk):
         try:
             # 1. Generowanie URL
             grouped_urls = data_downloader.generate_gfs_urls(
-                self.start_modelu_dt, 
-                is_cdr=is_cdr, 
+                self.start_modelu_dt,
+                self.start_prognozy_dt,
+                is_cdr=is_cdr,
                 is_bwr=is_bwr
             )
             total_urls = sum(len(urls) for urls in grouped_urls.values())

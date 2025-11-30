@@ -13,19 +13,38 @@ DOWNLOAD_TIMEOUT = config.DOWNLOAD_TIMEOUT
 DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 # CDR
-FCT_HOURS_CDR = config.FCT_HOURS_CDR
 BBOX_CDR = config.BBOX_CDR
 CDR_BLOCKS = config.CDR_BLOCKS
 CDR_URL_MAP = config.CDR_URL_MAP
 
 # BWR
-FCT_HOURS_BWR = config.FCT_HOURS_BWR
 BBOX_BWR = config.BBOX_BWR
 BWR_VARS = config.BWR_VARS
 BWR_LEVELS_MB_URL = config.BWR_LEVELS_MB_URL
 
 
-def generate_gfs_urls(start_modelu_dt: datetime.datetime, is_cdr: bool, is_bwr: bool) -> dict:
+def _calculate_forecast_hours(start_modelu_dt: datetime.datetime, start_prognozy_dt: datetime.datetime) -> tuple[list[int], list[int]]:
+    """Wylicza listy godzin prognostycznych w oparciu o GUI."""
+
+    start_offset_hr = int((start_prognozy_dt - start_modelu_dt).total_seconds() // 3600)
+    start_offset_hr = max(start_offset_hr, 0)
+
+    fct_hours_cdr = list(range(
+        start_offset_hr,
+        start_offset_hr + config.HORIZON_HR_CDR + config.CADENCE_HR_CDR,
+        config.CADENCE_HR_CDR
+    ))
+
+    fct_hours_bwr = list(range(
+        start_offset_hr + config.CADENCE_HR_BWR,
+        start_offset_hr + config.HORIZON_HR_BWR + config.CADENCE_HR_BWR,
+        config.CADENCE_HR_BWR
+    ))
+
+    return fct_hours_cdr, fct_hours_bwr
+
+
+def generate_gfs_urls(start_modelu_dt: datetime.datetime, start_prognozy_dt: datetime.datetime, is_cdr: bool, is_bwr: bool) -> dict:
     grouped_urls = {}
 
     date_str = start_modelu_dt.strftime("%Y%m%d")
@@ -42,10 +61,12 @@ def generate_gfs_urls(start_modelu_dt: datetime.datetime, is_cdr: bool, is_bwr: 
             ("dir", folder),
         ]
 
+    fct_hours_cdr, fct_hours_bwr = _calculate_forecast_hours(start_modelu_dt, start_prognozy_dt)
+
     # --- B. Generowanie URL dla BWR (blok: bwr_all) ---
     if is_bwr:
         bwr_urls = {}
-        for fct_hour in FCT_HOURS_BWR:
+        for fct_hour in fct_hours_bwr:
             fct_str = f"f{fct_hour:03d}"
 
             filename = f"BWR_all_{fct_str}.grib"
@@ -72,7 +93,7 @@ def generate_gfs_urls(start_modelu_dt: datetime.datetime, is_cdr: bool, is_bwr: 
             if not fields_on_level:
                 continue
 
-            for fct_hour in FCT_HOURS_CDR:
+            for fct_hour in fct_hours_cdr:
                 fct_str = f"f{fct_hour:03d}"
                 filename = f"CDR_{block_name}_{fct_str}.grib"
 
