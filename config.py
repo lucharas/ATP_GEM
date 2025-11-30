@@ -21,13 +21,13 @@ PRODUCT_START_HOUR = 6       # Godzina startu prognozy w meldunku (np. F006)
 
 # --- Ustawienia CDR ---
 CADENCE_HR_CDR = 2       # Interwał co 2h
-#HORIZON_HR_CDR = 24      # Czas trwania meldunku po starcie prognozy (24h)
-HORIZON_HR_CDR = 6      # Czas trwania meldunku po starcie prognozy (6h)
+HORIZON_HR_CDR = 24      # Czas trwania meldunku po starcie prognozy (24h)
+#HORIZON_HR_CDR = 6      # Czas trwania meldunku po starcie prognozy (6h)
 
 # --- Ustawienia BWR ---
 CADENCE_HR_BWR = 6       # Interwał co 6h
-#HORIZON_HR_BWR = 48      # Czas trwania meldunku po starcie prognozy (48h)
-HORIZON_HR_BWR = 12      # Czas trwania meldunku po starcie prognozy (12h)
+HORIZON_HR_BWR = 48      # Czas trwania meldunku po starcie prognozy (48h)
+#HORIZON_HR_BWR = 12      # Czas trwania meldunku po starcie prognozy (12h)
 
 
 # =======================
@@ -82,8 +82,8 @@ FIELDS_CDR = [
     ("APCP", "lev_surface", "apcp"),
     ("ACPCP", "lev_surface", "acpcp"),
     ("CAPE", "lev_surface", "cape"),
-    ("CIN", "lev_surface", "cin"),
-    ("4LFTX", "lev_surface", "lftx"),
+    #("CIN", "lev_surface", "cin"),
+    #("4LFTX", "lev_surface", "lftx"),
 ]
 
 # --- BWR: Pola na poziomach barycznych ---
