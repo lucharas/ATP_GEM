@@ -2,7 +2,8 @@ import os
 import warnings
 import xarray as xr
 import pandas as pd
-import config  # Import ustawień z pliku config.py
+import config 
+import re # Import re dla elastycznego dopasowania nazw plików
 
 # Tłumienie ostrzeżeń (szczególnie cfgrib/pandas)
 warnings.filterwarnings("ignore")
@@ -15,26 +16,27 @@ INPUT_DIR = config.DOWNLOAD_DIR
 OUTPUT_DIR = config.RAW_DATA_DIR 
 OUTPUT_FILENAME = "cdr_sfc.csv"
 
+# Wzór nazwy pliku GRIB do parsowania (dla CDR_sfc_fXXX.grib)
+FILENAME_PATTERN = re.compile(r"CDR_sfc_f(?P<hour>\d{3})\.grib$")
+
 # Oczekiwane nazwy zmiennych w GRIB (shortName)
-# Opady GFS w cfgrib są często mapowane jako 'tp' i 'cp' (Total/Convective Precipitation)
 EXPECTED_GRIB_VARS = ['vis', 'cape', 'tp', 'cp'] 
 
-# Mapowanie: Nazwa w GRIB -> Nazwa w CSV (zgodnie z życzeniem)
+# Mapowanie: Nazwa w GRIB -> Nazwa w CSV (z sufiksem poziomu)
 VAR_MAP = {
-    'vis': 'vis',
-    'cape': 'cape',
-    'tp': 'apcp',  # Total Precipitation -> apcp
-    'cp': 'acpcp'  # Convective Precipitation -> acpcp
+    'vis': 'vis_sfc',
+    'cape': 'cape_sfc',
+    'tp': 'apcp_sfc',  # Total Precipitation -> apcp_sfc
+    'cp': 'acpcp_sfc'  # Convective Precipitation -> acpcp_sfc
 }
 
 # Filtr GRIB: Ładujemy wszystkie zmienne tylko dla poziomu 'surface'
 GRIB_FILTERS = {
     'typeOfLevel': 'surface' 
-    # Usunięto 'stepType', aby załadować Instant i Accum jednocześnie.
 }
 
-# Kolumny końcowe w pliku CSV
-TARGET_COLS = ['yyyy', 'mm', 'dd', 'hh', 'lat', 'lon', 'vis', 'apcp', 'acpcp', 'cape']
+# Kolumny końcowe w pliku CSV (z sufiksem poziomu)
+TARGET_COLS = ['yyyy', 'mm', 'dd', 'hh', 'lat', 'lon', 'vis_sfc', 'apcp_sfc', 'acpcp_sfc', 'cape_sfc']
 
 def main():
     if not os.path.exists(OUTPUT_DIR):
@@ -43,78 +45,106 @@ def main():
     all_dfs = [] 
     cycle_header_str = None 
 
-    print(f"--- Start parsowania zbiorczego CDR SFC (Surface) w JEDNYM KROKU ---")
+    print(f"--- Start parsowania zbiorczego CDR SFC (Surface) ---")
     
-    for hour in config.FCT_HOURS_CDR:
-        fct_str = f"{hour:03d}"
-        filename_in = f"CDR_sfc_f{fct_str}.grib" 
-        path_in = os.path.join(INPUT_DIR, filename_in)
-
-        if not os.path.exists(path_in):
-            print(f"[SKIP] Brak pliku: {filename_in}")
-            continue
-
-        try:
-            # 1. Ładowanie wszystkich danych powierzchniowych w JEDNYM KROKU
-            ds = xr.open_dataset(
-                path_in,
-                engine='cfgrib',
-                backend_kwargs={'filter_by_keys': GRIB_FILTERS}
-            )
-
-            # Pobranie daty cyklu (runu modelu)
-            if cycle_header_str is None:
-                run_time = pd.to_datetime(ds.time.values)
-                cycle_str = run_time.strftime('%Y%m%d_%H')
-                cycle_header_str = f"model={config.MODEL_NAME}, cycle={cycle_str}"
-                print(f"[INFO] Wykryto cykl: {cycle_str}")
+    # Skanowanie katalogu w poszukiwaniu plików pasujących do wzoru (większa elastyczność)
+    for filename_in in sorted(os.listdir(INPUT_DIR)):
+        match = FILENAME_PATTERN.match(filename_in)
+        
+        if match:
+            fct_hour = int(match.group('hour'))
             
-            # 2. Konwersja do DataFrame
-            grib_vars_to_load = [v for v in EXPECTED_GRIB_VARS if v in ds]
-            
-            if not grib_vars_to_load:
-                print(f"[ERR] Nie znaleziono oczekiwanych zmiennych GRIB w pliku {filename_in}.")
-                continue
+            path_in = os.path.join(INPUT_DIR, filename_in)
 
-            # Tworzymy DataFrame zawierający wszystkie zmienne
-            df = ds[grib_vars_to_load].to_dataframe().reset_index()
+            try:
+                # 1. Ładowanie wszystkich danych powierzchniowych w JEDNYM KROKU
+                ds = xr.open_dataset(
+                    path_in,
+                    engine='cfgrib',
+                    backend_kwargs={'filter_by_keys': GRIB_FILTERS}
+                )
 
-            # 3. Przetwarzanie czasu (valid_time -> yyyy, mm, dd, hh)
-            df['valid_time'] = pd.to_datetime(df['valid_time'])
-            df['yyyy'] = df['valid_time'].dt.year
-            df['mm'] = df['valid_time'].dt.month
-            df['dd'] = df['valid_time'].dt.day
-            df['hh'] = df['valid_time'].dt.hour
-            
-            # 4. Korekta Longitude i przypisanie lat/lon
-            df['lon'] = df['longitude'].apply(lambda x: x if x <= 180 else x - 360)
-            df['lat'] = df['latitude']
-            
-            # 5. Zmiana nazw kolumn na docelowe (np. tp -> apcp)
-            df = df.rename(columns=VAR_MAP)
+                # 2. Pobranie daty cyklu (runu modelu) - ujednolicona logika
+                if cycle_header_str is None:
+                    run_time_found = False
+                    source_var = 'UNKNOWN'
 
-            # 6. Finalna struktura kolumn
-            df_final = df[df.columns.intersection(TARGET_COLS)]
-            # Uzupełnianie brakujących kolumn zerami (np. w f006 opady mogą być pominięte)
-            for col in [c for c in TARGET_COLS if c not in df_final.columns]:
-                df_final[col] = 0.0 
+                    if 'forecast_reference_time' in ds.coords:
+                        run_time = ds['forecast_reference_time'].values
+                        run_time_found = True
+                        source_var = 'forecast_reference_time'
+                    elif 'time' in ds.coords:
+                        run_time = ds['time'].values
+                        run_time_found = True
+                        source_var = 'time'
+                    else:
+                        for var_name in EXPECTED_GRIB_VARS: 
+                            if var_name in ds and 'GRIB_refTime' in ds[var_name].attrs: 
+                                run_time = ds[var_name].attrs['GRIB_refTime']
+                                run_time_found = True
+                                source_var = var_name + ' GRIB_refTime'
+                                break
+                                
+                    if run_time_found:
+                        run_time = pd.to_datetime(run_time)
+                        cycle_str = run_time.strftime('%Y%m%d_%H')
+                        cycle_header_str = f"model={config.MODEL_NAME}, cycle={cycle_str}"
+                        print(f"[INFO] Wykryto cykl: {cycle_str} (źródło: {source_var})")
+                    else:
+                        print(f"[ERR] Nie znaleziono GRIB refTime. Nagłówek będzie UNKNOWN.")
+                
+                # 3. Konwersja do DataFrame
+                grib_vars_to_load = [v for v in EXPECTED_GRIB_VARS if v in ds]
+                
+                if not grib_vars_to_load:
+                    print(f"[ERR] Nie znaleziono oczekiwanych zmiennych GRIB w pliku {filename_in}.")
+                    continue
 
-            df_final = df_final[TARGET_COLS]
+                # Tworzymy DataFrame zawierający wszystkie zmienne
+                df = ds[grib_vars_to_load].to_dataframe().reset_index()
 
-            # 7. Zaokrąglanie wartości
-            df_final['lat'] = df_final['lat'].round(3)
-            df_final['lon'] = df_final['lon'].round(3)
-            df_final['vis'] = df_final['vis'].round(0) 
-            df_final['cape'] = df_final['cape'].round(0)
-            df_final['apcp'] = df_final['apcp'].round(2)
-            df_final['acpcp'] = df_final['acpcp'].round(2)
+                # 4. Przetwarzanie czasu (valid_time -> yyyy, mm, dd, hh)
+                df['valid_time'] = pd.to_datetime(df['valid_time'])
+                df['yyyy'] = df['valid_time'].dt.year
+                df['mm'] = df['valid_time'].dt.month
+                df['dd'] = df['valid_time'].dt.day
+                df['hh'] = df['valid_time'].dt.hour
+                
+                # 5. Korekta Longitude i przypisanie lat/lon
+                df['lon'] = df['longitude'].apply(lambda x: x if x <= 180 else x - 360)
+                df['lat'] = df['latitude']
+                
+                # 6. Zmiana nazw kolumn na docelowe (z sufiksem)
+                df = df.rename(columns=VAR_MAP)
 
-            all_dfs.append(df_final)
-            print(f"[OK] Przetworzono: {filename_in}")
+                # 7. Finalna struktura kolumn
+                df_final = df[df.columns.intersection(TARGET_COLS)]
+                
+                # Uzupełnianie brakujących kolumn zerami
+                for col in [c for c in TARGET_COLS if c not in df_final.columns]:
+                    df_final[col] = 0.0 
 
-        except Exception as e:
-            print(f"[CRITICAL] Błąd przy pliku {filename_in}: {e}")
-            
+                df_final = df_final[TARGET_COLS]
+
+                # 8. Zaokrąglanie wartości
+                df_final['lat'] = df_final['lat'].round(3)
+                df_final['lon'] = df_final['lon'].round(3)
+                df_final['vis_sfc'] = df_final['vis_sfc'].round(0) 
+                df_final['cape_sfc'] = df_final['cape_sfc'].round(0)
+                df_final['apcp_sfc'] = df_final['apcp_sfc'].round(2)
+                df_final['acpcp_sfc'] = df_final['acpcp_sfc'].round(2)
+
+                all_dfs.append(df_final)
+                print(f"[OK] Przetworzono: {filename_in}")
+
+            except Exception as e:
+                print(f"[CRITICAL] Błąd przy pliku {filename_in}: {e}")
+                
+        # --- Pomijanie innych plików ---
+        elif filename_in.startswith("CDR_sfc_f") and not match:
+             # Opcjonalne: jeśli plik zaczyna się od CDR_sfc_f, ale nie pasuje do wzoru, można go zignorować
+             pass 
+
     # --- ZAPIS PLIKU ZBIORCZEGO ---
     if all_dfs:
         print("--- Łączenie i zapis pliku zbiorczego ---")
