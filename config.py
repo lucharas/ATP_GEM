@@ -9,8 +9,8 @@ DOWNLOAD_TIMEOUT = 60 # Sekundy na timeout zapytania HTTP
 MODEL_NAME = "GFS_0p25_1hr"
 DOWNLOAD_DIR = "grib_data" # Katalog, do którego będą pobierane pliki GRIB
 RAW_DATA_DIR = "raw_data"
-BWR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR, "bwr_output")
-CDR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR, "cdr_output")
+BWR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR)
+CDR_OUTPUT_DIR = os.path.join(RAW_DATA_DIR)
 LOG_MAX_LINES = 200
 
 # =======================
